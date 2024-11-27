@@ -1,11 +1,17 @@
 #include "mbed.h"
+#include "LCD_DISCO_F429ZI.h"
+#include "iostream"
 
+LCD_DISCO_F429ZI lcd;
 
-int main(){
-  // Setup Code: Code meant to run only once
-
-  while(1){
-    // Loop Code: Code meant to run indefinitely (Infinite Loop!)
-    thread_sleep_for(1000); // Sleep (Embedded Delay)
-  }
+int main()
+{
+lcd.Clear(LCD_COLOR_BLUE);
+lcd.SetBackColor(LCD_COLOR_BLUE);
+lcd.SetTextColor(LCD_COLOR_WHITE);
+lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"HELLO", CENTER_MODE);
+while(1)
+{
 }
+}
+
