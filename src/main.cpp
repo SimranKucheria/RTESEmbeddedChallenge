@@ -10,7 +10,6 @@ std::string ui_background_color = "BLUE";
 std::string header = "Menu";
 int user_profiles = 0;
 int current_user = 0;
-int touched = 0;
 //Need an array to hold gestures (Lets limit to 4 dynamic users that can be deleted and added)
 
 
@@ -49,24 +48,22 @@ void DisplayLoop() {
         lcd.DrawHLine(0, 40, lcd.GetXSize());
         lcd.DrawHLine(0, 290, lcd.GetXSize());
 
-        if (touched){
-            lcd.SetTextColor(LCD_COLOR_BLACK);
-            lcd.DrawRect(100, 50, 30, 30);  // draw the rectangle to indicate the current user profile
-            
-            thread_sleep_for(10000);
-        }
     }
 
     else if(header == "Create User"){
         if(user_profiles == 4){
             lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "CANNOT CREATE MORE", CENTER_MODE);
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "PLEASE DELETE", CENTER_MODE);
-            header = "Menu";
+            lcd.DisplayStringAt(0, LINE(12), (uint8_t *) "PLEASE DELETE", CENTER_MODE);
+
+
+            lcd.DisplayStringAt(0, LINE(15), (uint8_t *) "MENU", CENTER_MODE);
+            
         }
         else{
             user_profiles++;
             lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "CREATED USER" +user_profiles, CENTER_MODE);
             //Should go to GYRO recording mode yaha se
+            thread_sleep_for(2000);
             header = "Menu"; //Exiting for now but need to add gyro recording and the return to menu
         }
 
@@ -75,12 +72,15 @@ void DisplayLoop() {
     else if(header == "Delete User"){
         if(user_profiles == 0){
             lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "NO USERS TO DELETE", CENTER_MODE);
-            header = "Menu";
+
+            lcd.DisplayStringAt(0, LINE(15), (uint8_t *) "MENU", CENTER_MODE);
         }
         else{
             lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "DELETED USER" + user_profiles, CENTER_MODE);
             user_profiles--;
             //Manipulate gestures array
+
+            thread_sleep_for(2000);
             header = "Menu";
         }
     }
@@ -99,6 +99,8 @@ void DisplayLoop() {
         if (user_profiles == 0){
 
             lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "PLEASE ADD USER", CENTER_MODE);
+            thread_sleep_for(2000);
+            header = "Menu";
         }
         else{
 
@@ -150,7 +152,6 @@ void DynamicLoop() {
         BSP_TS_GetState(&ts_state);
         if (ts_state.TouchDetected) {
             if(header == "Menu"){
-                touched = 1;
                 if (ts_state.Y < LINE(5) && ts_state.Y >= LINE(0)) header = "Create User";
                 else if (ts_state.Y < LINE(10)&& ts_state.Y >= LINE(5)) header = "Delete User";
                 else if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(10)) header = "User Profiles";
@@ -158,6 +159,12 @@ void DynamicLoop() {
             }
             else if(header == "User Profiles"){
                 current_user = getUser(ts_state.Y) == -1 ? current_user : getUser(ts_state.Y);
+            }
+            else if(header == "Create User"){
+                if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(0)) header = "Menu";
+            }
+            else if(header == "Delete User"){
+                if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(0)) header = "Menu";
             }
         }
         thread_sleep_for(50);
