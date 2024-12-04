@@ -128,7 +128,7 @@ void record_gesture_sequence()
     }
 }
 
-void attempt_sequence()
+void validate_sequence()
 {
     for (int i = 0; i < MAX_SEQUENCE; i++)
     {
@@ -148,6 +148,63 @@ void attempt_sequence()
 }
 
 // preprocessing stage - 1 (Calibrating to initial position and denoising the data)
+
+void normalize_sequence(std::vector<std::vector<float>> &sequence)
+{
+    if (sequence.empty())
+    {
+        return;
+    }
+
+    const int num_points = sequence.size();
+    const int num_dimensions = sequence[0].size();
+
+    // Initialize statistical vectors
+    std::vector<float> mean(num_dimensions, 0.0f);
+    std::vector<float> stddev(num_dimensions, 0.0f);
+
+    // Calculate mean
+    for (const auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            mean[dim] += point[dim];
+        }
+    }
+
+    for (int dim = 0; dim < num_dimensions; ++dim)
+    {
+        mean[dim] /= num_points;
+    }
+
+    // Calculate standard deviation
+    for (const auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            float diff = point[dim] - mean[dim];
+            stddev[dim] += diff * diff;
+        }
+    }
+
+    for (int dim = 0; dim < num_dimensions; ++dim)
+    {
+        stddev[dim] = std::sqrt(stddev[dim] / num_points);
+    }
+
+    // Perform normalization
+    for (auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            if (std::abs(stddev[dim]) != 0)
+            {
+                point[dim] = (point[dim] - mean[dim]) / stddev[dim];
+            }
+        }
+    }
+}
+
 void calibrate_gyro_using_initial_position(std::vector<std::vector<float>> &sequence)
 {
     if (sequence.empty())
@@ -214,63 +271,7 @@ void remove_noise_from_datapoints(std::vector<std::vector<float>> &sequence, flo
     }
 }
 
-void normalize_sequence(std::vector<std::vector<float>> &sequence)
-{
-    if (sequence.empty())
-    {
-        return;
-    }
-
-    const int num_points = sequence.size();
-    const int num_dimensions = sequence[0].size();
-
-    // Initialize statistical vectors
-    std::vector<float> mean(num_dimensions, 0.0f);
-    std::vector<float> stddev(num_dimensions, 0.0f);
-
-    // Calculate mean
-    for (const auto &point : sequence)
-    {
-        for (int dim = 0; dim < num_dimensions; ++dim)
-        {
-            mean[dim] += point[dim];
-        }
-    }
-
-    for (int dim = 0; dim < num_dimensions; ++dim)
-    {
-        mean[dim] /= num_points;
-    }
-
-    // Calculate standard deviation
-    for (const auto &point : sequence)
-    {
-        for (int dim = 0; dim < num_dimensions; ++dim)
-        {
-            float diff = point[dim] - mean[dim];
-            stddev[dim] += diff * diff;
-        }
-    }
-
-    for (int dim = 0; dim < num_dimensions; ++dim)
-    {
-        stddev[dim] = std::sqrt(stddev[dim] / num_points);
-    }
-
-    // Perform normalization
-    for (auto &point : sequence)
-    {
-        for (int dim = 0; dim < num_dimensions; ++dim)
-        {
-            if (std::abs(stddev[dim]) != 0)
-            {
-                point[dim] = (point[dim] - mean[dim]) / stddev[dim];
-            }
-        }
-    }
-}
-
-// Preprocessing stage - 2 (Adding a filter)
+// Preprocessing stage - 2 (Adding a filter for denoising, drift compensation and improving the data quality)
 
 // helper - TODO delete these later from source code
 
