@@ -107,73 +107,69 @@ void read_gyroscope()
     toggle_status_led();
 }
 
-void record_gesture_sequence() {
-    
-    for(int i = 0; i < MAX_SEQUENCE; i++) {
-        read_gyroscope();  // Using the new sample_gyroscope function
-        
+void record_gesture_sequence()
+{
+
+    for (int i = 0; i < MAX_SEQUENCE; i++)
+    {
+        read_gyroscope(); // Using the new sample_gyroscope function
+
         // Store values in array and vector
         ground_truth_gesture_sequence[i][0] = gyro_data[0];
         ground_truth_gesture_sequence[i][1] = gyro_data[1];
         ground_truth_gesture_sequence[i][2] = gyro_data[2];
 
         ThisThread::sleep_for(chrono::milliseconds(SEQUENCE_DELAY_MS));
-        
+
         // Add to sequence collection
-        ground_truth_sequences.push_back({
-            gyro_data[0],
-            gyro_data[1],
-            gyro_data[2]
-        });
-        
+        ground_truth_sequences.push_back({gyro_data[0],
+                                          gyro_data[1],
+                                          gyro_data[2]});
     }
-    
 }
 
-void attempt_sequence() {
-    for(int i = 0; i < MAX_SEQUENCE; i++) {
+void attempt_sequence()
+{
+    for (int i = 0; i < MAX_SEQUENCE; i++)
+    {
         read_gyroscope();
-        
+
         // Store values in array and vector
         test_sequence[i][0] = gyro_data[0];
         test_sequence[i][1] = gyro_data[1];
         test_sequence[i][2] = gyro_data[2];
-        
+
         ThisThread::sleep_for(chrono::milliseconds(SEQUENCE_DELAY_MS));
 
-        test_sequences.push_back({
-            gyro_data[0],
-            gyro_data[1],
-            gyro_data[2]
-        });
-
+        test_sequences.push_back({gyro_data[0],
+                                  gyro_data[1],
+                                  gyro_data[2]});
     }
-    
 }
 
-
 // preprocessing stage - 1 (Calibrating to initial position and denoising the data)
-void calibrate_gyro_using_initial_position(std::vector<std::vector<float>>& sequence)
+void calibrate_gyro_using_initial_position(std::vector<std::vector<float>> &sequence)
 {
-    if(sequence.empty())
+    if (sequence.empty())
     {
         return;
     }
 
     std::vector<float> initial_position = sequence[0];
 
-    for(auto& pos : sequence)
+    for (auto &pos : sequence)
     {
-        for(size_t i = 0; i < pos.size(); i++)
+        for (size_t i = 0; i < pos.size(); i++)
         {
             pos[i] = pos[i] - initial_position[i];
         }
     }
 }
 
-void remove_noise_from_datapoints(std::vector<std::vector<float>>& sequence, float noise_threshold = DEFAULT_NOISE_THRESHOLD)
+void remove_noise_from_datapoints(std::vector<std::vector<float>> &sequence, float noise_threshold = DEFAULT_NOISE_THRESHOLD)
 {
-    if (sequence.empty()) {
+    if (sequence.empty())
+    {
         return;
     }
 
@@ -183,8 +179,10 @@ void remove_noise_from_datapoints(std::vector<std::vector<float>>& sequence, flo
     std::vector<float> min_values(sequence[0].size(), FLT_MAX);
 
     // Gather statistics
-    for (const auto& data_point : sequence) {
-        for (size_t i = 0; i < sequence[0].size(); i++) {
+    for (const auto &data_point : sequence)
+    {
+        for (size_t i = 0; i < sequence[0].size(); i++)
+        {
             means[i] += data_point[i];
             max_values[i] = std::max(max_values[i], data_point[i]);
             min_values[i] = std::min(min_values[i], data_point[i]);
@@ -192,19 +190,23 @@ void remove_noise_from_datapoints(std::vector<std::vector<float>>& sequence, flo
     }
 
     // Calculate final means
-    for (auto& mean : means) {
+    for (auto &mean : means)
+    {
         mean /= sequence.size();
     }
 
     // Apply calibration
     int noise_removals = 0;
-    for (auto& data_point : sequence) {
-        for (size_t i = 0; i < sequence[0].size(); i++) {
+    for (auto &data_point : sequence)
+    {
+        for (size_t i = 0; i < sequence[0].size(); i++)
+        {
             // Remove mean (DC offset)
             data_point[i] -= means[i];
-            
+
             // Apply noise threshold
-            if (std::abs(data_point[i]) < noise_threshold) {
+            if (std::abs(data_point[i]) < noise_threshold)
+            {
                 data_point[i] = 0.0f;
                 noise_removals++;
             }
@@ -212,16 +214,70 @@ void remove_noise_from_datapoints(std::vector<std::vector<float>>& sequence, flo
     }
 }
 
+void normalize_sequence(std::vector<std::vector<float>> &sequence)
+{
+    if (sequence.empty())
+    {
+        return;
+    }
+
+    const int num_points = sequence.size();
+    const int num_dimensions = sequence[0].size();
+
+    // Initialize statistical vectors
+    std::vector<float> mean(num_dimensions, 0.0f);
+    std::vector<float> stddev(num_dimensions, 0.0f);
+
+    // Calculate mean
+    for (const auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            mean[dim] += point[dim];
+        }
+    }
+
+    for (int dim = 0; dim < num_dimensions; ++dim)
+    {
+        mean[dim] /= num_points;
+    }
+
+    // Calculate standard deviation
+    for (const auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            float diff = point[dim] - mean[dim];
+            stddev[dim] += diff * diff;
+        }
+    }
+
+    for (int dim = 0; dim < num_dimensions; ++dim)
+    {
+        stddev[dim] = std::sqrt(stddev[dim] / num_points);
+    }
+
+    // Perform normalization
+    for (auto &point : sequence)
+    {
+        for (int dim = 0; dim < num_dimensions; ++dim)
+        {
+            if (std::abs(stddev[dim]) != 0)
+            {
+                point[dim] = (point[dim] - mean[dim]) / stddev[dim];
+            }
+        }
+    }
+}
+
+// Preprocessing stage - 2 (Adding a filter)
 
 // helper - TODO delete these later from source code
 
-
 int main()
 {
-    
 
     while (1)
     {
-       
     }
 }
