@@ -1,186 +1,164 @@
 #include "mbed.h"
 #include "LCD_DISCO_F429ZI.h"
-#include "iostream"
+#include <string>
 #include "stm32f429i_discovery_ts.h"
+#include "rtos/ThisThread.h"
+#include "rtos/Mutex.h"
 
+// Global objects and variables
 LCD_DISCO_F429ZI lcd;
-TS_StateTypeDef ts_state;
+Mutex lcd_mutex;
 
+// Shared variables
 std::string ui_background_color = "BLUE";
 std::string header = "Menu";
-int user_profiles = 0;
-int current_user = 0;
-//Need an array to hold gestures (Lets limit to 4 dynamic users that can be deleted and added)
-
+volatile int user_profiles = 0;
+volatile int current_user = 0;
 
 void DisplayLoop() {
-  while (true) {
-      
-    if (ui_background_color == "BLUE" ) {
+    while (true) {
+        lcd_mutex.lock();
         
-      lcd.Clear(LCD_COLOR_BLUE);
-      lcd.SetBackColor(LCD_COLOR_BLUE);
+        // Set background color
+        if (ui_background_color == "BLUE") {
+            lcd.Clear(LCD_COLOR_BLUE);
+            lcd.SetBackColor(LCD_COLOR_BLUE);
+        } else if (ui_background_color == "GREEN") {
+            lcd.Clear(LCD_COLOR_GREEN);
+            lcd.SetBackColor(LCD_COLOR_GREEN);
+        } else {
+            lcd.Clear(LCD_COLOR_RED);
+            lcd.SetBackColor(LCD_COLOR_RED);
+        }
 
-    } else if (ui_background_color == "GREEN") {
-        
-      lcd.Clear(LCD_COLOR_GREEN);
-      lcd.SetBackColor(LCD_COLOR_GREEN);
-    
-    } else {
-        
-      lcd.Clear(LCD_COLOR_RED);
-      lcd.SetBackColor(LCD_COLOR_RED);
+        lcd.SetTextColor(LCD_COLOR_WHITE);
+        lcd.DisplayStringAt(0, LINE(1), (uint8_t *)header.c_str(), CENTER_MODE);
 
-    }
-
-    lcd.SetTextColor(LCD_COLOR_WHITE);
-
-    lcd.DisplayStringAt(0, LINE(1), (uint8_t *)header.c_str(), CENTER_MODE);
-
-    if (header == "Menu"){
-        lcd.DisplayStringAt(0, LINE(5), (uint8_t *) "CREATE USER", CENTER_MODE);
-        lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "USER PROFILES", CENTER_MODE);
-        lcd.DisplayStringAt(0, LINE(15), (uint8_t *) "DELETE USER", CENTER_MODE);
-       
-        
-        lcd.DrawHLine(0, 0, lcd.GetXSize());
-        lcd.DrawHLine(0, lcd.GetYSize() - 1, lcd.GetXSize());
-        lcd.DrawHLine(0, 40, lcd.GetXSize());
-        lcd.DrawHLine(0, 290, lcd.GetXSize());
-
-    }
-
-    else if(header == "Create User"){
-        if(user_profiles == 4){
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "CANNOT CREATE MORE", CENTER_MODE);
-            lcd.DisplayStringAt(0, LINE(12), (uint8_t *) "PLEASE DELETE", CENTER_MODE);
-
-
-            lcd.DisplayStringAt(0, LINE(15), (uint8_t *) "MENU", CENTER_MODE);
+        if (header == "Menu") {
+            lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"CREATE USER", CENTER_MODE);
+            lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"USER PROFILES", CENTER_MODE);
+            lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"DELETE USER", CENTER_MODE);
             
-        }
-        else{
-            user_profiles++;
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "CREATED USER" +user_profiles, CENTER_MODE);
-            //Should go to GYRO recording mode yaha se
-            thread_sleep_for(2000);
-            header = "Menu"; //Exiting for now but need to add gyro recording and the return to menu
-        }
-
-    }
-
-    else if(header == "Delete User"){
-        if(user_profiles == 0){
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "NO USERS TO DELETE", CENTER_MODE);
-
-            lcd.DisplayStringAt(0, LINE(15), (uint8_t *) "MENU", CENTER_MODE);
-        }
-        else{
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "DELETED USER" + user_profiles, CENTER_MODE);
-            user_profiles--;
-            //Manipulate gestures array
-
-            thread_sleep_for(2000);
-            header = "Menu";
-        }
-    }
-
-    else if(header == "Record New Action"){
-        lcd.DisplayStringAt(0, LINE(30), (uint8_t *) "NEED TO CODE", CENTER_MODE);
-       
-        
-        lcd.DrawHLine(0, 0, lcd.GetXSize());
-        lcd.DrawHLine(0, lcd.GetYSize() - 1, lcd.GetXSize());
-        lcd.DrawHLine(0, 40, lcd.GetXSize());
-        lcd.DrawHLine(0, 290, lcd.GetXSize());
-
-    }
-    else{
-        if (user_profiles == 0){
-
-            lcd.DisplayStringAt(0, LINE(10), (uint8_t *) "PLEASE ADD USER", CENTER_MODE);
-            thread_sleep_for(2000);
-            header = "Menu";
-        }
-        else{
-
-            for (int8_t i = user_profiles; i >= 1; --i) {  // Display numbers for the 5 user profiles available
-
-            lcd.DisplayStringAt(0, LINE((i * 3) + 1), (uint8_t *) user_profiles, CENTER_MODE);
-            --user_profiles;
-
-            }
-            
+            // Draw horizontal lines
             lcd.DrawHLine(0, 0, lcd.GetXSize());
             lcd.DrawHLine(0, lcd.GetYSize() - 1, lcd.GetXSize());
             lcd.DrawHLine(0, 40, lcd.GetXSize());
             lcd.DrawHLine(0, 290, lcd.GetXSize());
-
-            lcd.SetTextColor(LCD_COLOR_ORANGE);
+        }
+        else if (header == "Create User") {
+            if (user_profiles >= 4) {
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"CANNOT CREATE MORE", CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(12), (uint8_t *)"PLEASE DELETE", CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+            }
+            else {
+                std::string message = "CREATED USER " + std::to_string(user_profiles + 1);
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)message.c_str(), CENTER_MODE);
+                user_profiles++;
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+                ThisThread::sleep_for(2000ms);
+                header = "Menu";
             }
         }
-    thread_sleep_for(50);
-
-  }
-
+        else if (header == "Delete User") {
+            if (user_profiles <= 0) {
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"NO USERS TO DELETE", CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+            }
+            else {
+                std::string message = "DELETED USER " + std::to_string(user_profiles);
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)message.c_str(), CENTER_MODE);
+                user_profiles--;
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+                ThisThread::sleep_for(2000ms);
+                header = "Menu";
+            }
+        }
+        else if (header == "User Profiles") {
+            if (user_profiles == 0) {
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"PLEASE ADD USER", CENTER_MODE);
+                ThisThread::sleep_for(2000ms);
+                header = "Menu";
+            }
+            else {
+                for (int8_t i = 1; i <= user_profiles; i++) {
+                    std::string profile = "USER PROFILE " + std::to_string(i);
+                    lcd.DisplayStringAt(0, LINE((i * 3) + 1), (uint8_t *)profile.c_str(), CENTER_MODE);
+                }
+                
+                // Add Back to Menu option
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+                
+                lcd.DrawHLine(0, 0, lcd.GetXSize());
+                lcd.DrawHLine(0, lcd.GetYSize() - 1, lcd.GetXSize());
+                lcd.DrawHLine(0, 40, lcd.GetXSize());
+                lcd.DrawHLine(0, 290, lcd.GetXSize());
+                lcd.SetTextColor(LCD_COLOR_ORANGE);
+            }
+        }
+        
+        lcd_mutex.unlock();
+        ThisThread::sleep_for(50ms);
+    }
 }
 
 int8_t getUser(int32_t y) {
-
-  if (y < 260 && y >= 210) return 4;
-  else if (y < 210 && y >= 165) return 3;
-  else if (y < 165 && y >= 135) return 2;
-  else if (y < 135 && y >= 80) return 1;
-  else if (y < 80 && y >= 30) return 0;
-  else return -1;
-
+    if (y < 260 && y >= 210) return 4;
+    if (y < 210 && y >= 165) return 3;
+    if (y < 165 && y >= 135) return 2;
+    if (y < 135 && y >= 80) return 1;
+    if (y < 80 && y >= 30) return 0;
+    return -1;
 }
 
 void DynamicLoop() {
+    uint8_t status = BSP_TS_Init(lcd.GetXSize(), lcd.GetYSize());
+    
+    if (status != TS_OK) {
+        lcd_mutex.lock();
+        lcd.SetBackColor(LCD_COLOR_WHITE);
+        lcd.SetTextColor(LCD_COLOR_RED);
+        lcd.DisplayStringAt(0, lcd.GetYSize() - 95, (uint8_t *)"ERROR", CENTER_MODE);
+        lcd.DisplayStringAt(0, lcd.GetYSize() - 80, (uint8_t *)"Touchscreen cannot be initialized", CENTER_MODE);
+        lcd_mutex.unlock();
+        return;
+    }
 
-  uint8_t status = 0;
-  status = BSP_TS_Init(lcd.GetXSize(), lcd.GetYSize());
-  if (status != TS_OK){
-    BSP_LCD_SetBackColor(LCD_COLOR_WHITE); 
-    BSP_LCD_SetTextColor(LCD_COLOR_RED);
-    BSP_LCD_DisplayStringAt(0, BSP_LCD_GetYSize()- 95, (uint8_t*)"ERROR", CENTER_MODE);
-    BSP_LCD_DisplayStringAt(0, BSP_LCD_GetYSize()- 80, (uint8_t*)"Touchscreen cannot be initialized", CENTER_MODE);
-  }
-  else{
     TS_StateTypeDef ts_state;
     while (true) {
         BSP_TS_GetState(&ts_state);
         if (ts_state.TouchDetected) {
-            if(header == "Menu"){
-                if (ts_state.Y < LINE(5) && ts_state.Y >= LINE(0)) header = "Create User";
-                else if (ts_state.Y < LINE(10)&& ts_state.Y >= LINE(5)) header = "Delete User";
-                else if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(10)) header = "User Profiles";
-                else header = "Menu";
+            lcd_mutex.lock();
+            
+            if (header == "Menu") {
+                if (ts_state.Y < LINE(7) && ts_state.Y >= LINE(3)) {
+                    header = "Delete User";
+                } else if (ts_state.Y < LINE(12) && ts_state.Y >= LINE(8)) {
+                    header = "User Profiles";
+                } else if (ts_state.Y < LINE(17) && ts_state.Y >= LINE(13)) {
+                    header = "Create User";
+                }
             }
-            else if(header == "User Profiles"){
-                current_user = getUser(ts_state.Y) == -1 ? current_user : getUser(ts_state.Y);
+            else if (header == "User Profiles" || header == "Create User" || header == "Delete User") {
+                if (ts_state.Y >= LINE(13) && ts_state.Y < LINE(17)) {
+                    header = "Menu";
+                }
             }
-            else if(header == "Create User"){
-                if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(0)) header = "Menu";
-            }
-            else if(header == "Delete User"){
-                if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(0)) header = "Menu";
-            }
+            
+            lcd_mutex.unlock();
         }
-        thread_sleep_for(50);
+        ThisThread::sleep_for(50ms);
     }
-  }
-}
-int main()
-{
-Thread display;
-display.start(DisplayLoop);
-
-Thread dynamic_ui;
-dynamic_ui.start(DynamicLoop);
-while(1)
-{
 }
 
+int main() {
+    Thread display_thread;
+    Thread dynamic_thread;
+    
+    display_thread.start(callback(DisplayLoop));
+    dynamic_thread.start(callback(DynamicLoop));
+    
+    while (true) {
+        ThisThread::sleep_for(1000ms);
+    }
 }
-
