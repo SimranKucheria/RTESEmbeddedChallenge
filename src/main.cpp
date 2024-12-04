@@ -4,6 +4,8 @@
 #include "Drivers/LCD_DISCO_F429ZI.h"
 #include "Drivers/TS_DISCO_F429ZI.h"
 #include <thread.h>
+#include <limits.h>
+#include <float.h>
 
 // Flags
 #define SPI_FLAG (1 << 0)
@@ -27,6 +29,7 @@ const uint8_t SPI_DATA_SIZE = 8;
 const uint8_t SPI_MODE = 3;
 const int SEQUENCE_DELAY_MS = 100;
 const int MAX_SEQUENCE = 100;
+const float DEFAULT_NOISE_THRESHOLD = 0.0001;
 
 // Sensor data buffers
 static uint8_t tx_buffer[8];
@@ -150,7 +153,64 @@ void attempt_sequence() {
 
 
 // preprocessing stage - 1 (Calibrating to initial position and denoising the data)
+void calibrate_gyro_using_initial_position(std::vector<std::vector<float>>& sequence)
+{
+    if(sequence.empty())
+    {
+        return;
+    }
 
+    std::vector<float> initial_position = sequence[0];
+
+    for(auto& pos : sequence)
+    {
+        for(size_t i = 0; i < pos.size(); i++)
+        {
+            pos[i] = pos[i] - initial_position[i];
+        }
+    }
+}
+
+void remove_noise_from_datapoints(std::vector<std::vector<float>>& sequence, float noise_threshold = DEFAULT_NOISE_THRESHOLD)
+{
+    if (sequence.empty()) {
+        return;
+    }
+
+    // Calculate mean values
+    std::vector<float> means(sequence[0].size(), 0.0f);
+    std::vector<float> max_values(sequence[0].size(), -FLT_MAX);
+    std::vector<float> min_values(sequence[0].size(), FLT_MAX);
+
+    // Gather statistics
+    for (const auto& data_point : sequence) {
+        for (size_t i = 0; i < sequence[0].size(); i++) {
+            means[i] += data_point[i];
+            max_values[i] = std::max(max_values[i], data_point[i]);
+            min_values[i] = std::min(min_values[i], data_point[i]);
+        }
+    }
+
+    // Calculate final means
+    for (auto& mean : means) {
+        mean /= sequence.size();
+    }
+
+    // Apply calibration
+    int noise_removals = 0;
+    for (auto& data_point : sequence) {
+        for (size_t i = 0; i < sequence[0].size(); i++) {
+            // Remove mean (DC offset)
+            data_point[i] -= means[i];
+            
+            // Apply noise threshold
+            if (std::abs(data_point[i]) < noise_threshold) {
+                data_point[i] = 0.0f;
+                noise_removals++;
+            }
+        }
+    }
+}
 
 
 // helper - TODO delete these later from source code
