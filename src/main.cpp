@@ -438,6 +438,58 @@ void weighted_moving_average(std::vector<std::vector<float>> &sequence, int wind
     sequence = filtered_sequence;
     
 }
+
+// Validation function for previously recorded gesture and new gesture
+
+// Helper function to calculate the distance
+float euclidean_distance(const std::vector<float>& a, const std::vector<float>& b) {
+    float sum = 0;
+    for (size_t i = 0; i < a.size(); i++) {
+        float diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+    return std::sqrt(sum);
+}
+
+float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std::vector<std::vector<float>> &validation_sequence)
+{
+    normalize_sequence(recorded_sequence);
+    normalize_sequence(validation_sequence);    
+
+    calibrate_gyro_using_initial_position(recorded_sequence);
+    remove_noise_from_datapoints(recorded_sequence, 0.0001);
+
+    calibrate_gyro_using_initial_position(validation_sequence);
+    remove_noise_from_datapoints(validation_sequence, 0.0001);
+
+    moving_average_filter(recorded_sequence);
+    moving_average_filter(validation_sequence);
+
+    int n = recorded_sequence.size();
+    int m = validation_sequence.size();
+    std::vector<std::vector<float>> dtw_matrix(n + 1, std::vector<float>(m + 1, std::numeric_limits<float>::max()));
+    
+    // Initialize first element
+    dtw_matrix[0][0] = 0;
+    
+    // Fill DTW matrix
+    for (int i = 1; i <= n; i++) {
+        for (int j = 1; j <= m; j++) {
+            float cost = euclidean_distance(recorded_sequence[i-1], validation_sequence[j-1]);
+            dtw_matrix[i][j] = cost + std::min({
+                dtw_matrix[i-1][j],     // insertion
+                dtw_matrix[i][j-1],     // deletion
+                dtw_matrix[i-1][j-1]    // match
+            });
+        }
+    }
+    
+    float final_distance = dtw_matrix[n][m];
+    printf("DTW Distance: %.4f\n", final_distance);
+    return final_distance;
+
+    
+}
 // helper - TODO delete these later from source code
 
 int main()
