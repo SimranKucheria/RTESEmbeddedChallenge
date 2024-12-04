@@ -272,7 +272,172 @@ void remove_noise_from_datapoints(std::vector<std::vector<float>> &sequence, flo
 }
 
 // Preprocessing stage - 2 (Adding a filter for denoising, drift compensation and improving the data quality)
+void moving_average_filter(std::vector<std::vector<float>> &sequence, int window_size = 3)
+{
 
+    if (sequence.empty() || window_size <= 1)
+    {
+        return;
+    }
+
+    int num_points = sequence.size();
+    int num_dimensions = sequence[0].size();
+    std::vector<std::vector<float>> filtered_sequence(num_points, std::vector<float>(num_dimensions, 0.0f));
+
+    for (int i = 0; i < num_points; ++i)
+    {
+        for (int j = 0; j < num_dimensions; ++j)
+        {
+            int window_start = std::max(0, i - window_size / 2);
+            int window_end = std::min(num_points - 1, i + window_size / 2);
+
+            float sum = 0;
+            for (int k = window_start; k <= window_end; ++k)
+            {
+                sum += sequence[k][j];
+            }
+            filtered_sequence[i][j] = sum / (window_end - window_start + 1);
+        }
+    }
+    sequence = filtered_sequence;
+}
+
+void exponential_moving_average(std::vector<std::vector<float>> &sequence, float alpha = 0.2f)
+{
+
+    if (sequence.empty() || alpha < 0 || alpha > 1)
+    {
+        return;
+    }
+
+    int num_points = sequence.size();
+    int num_dimensions = sequence[0].size();
+    std::vector<std::vector<float>> filtered_sequence = sequence;
+
+    for (int i = 1; i < num_points; ++i)
+    {
+        for (int j = 0; j < num_dimensions; ++j)
+        {
+            filtered_sequence[i][j] = alpha * sequence[i][j] + (1.0f - alpha) * filtered_sequence[i - 1][j];
+        }
+    }
+    sequence = filtered_sequence;
+}
+
+void median_filter(std::vector<std::vector<float>> &sequence, int window_size = 3)
+{
+
+    if (sequence.empty() || window_size <= 1)
+    {
+        return;
+    }
+
+    int num_points = sequence.size();
+    int num_dimensions = sequence[0].size();
+    std::vector<std::vector<float>> filtered_sequence(num_points, std::vector<float>(num_dimensions, 0.0f));
+    std::vector<float> window;
+    window.reserve(window_size);
+
+    for (int i = 0; i < num_points; ++i)
+    {
+        for (int j = 0; j < num_dimensions; ++j)
+        {
+            window.clear();
+            int window_start = std::max(0, i - window_size / 2);
+            int window_end = std::min(num_points - 1, i + window_size / 2);
+
+            for (int k = window_start; k <= window_end; ++k)
+            {
+                window.push_back(sequence[k][j]);
+            }
+            std::sort(window.begin(), window.end());
+            filtered_sequence[i][j] = window[window.size() / 2];
+        }
+    }
+    sequence = filtered_sequence;
+}
+
+void kalman_filter(std::vector<std::vector<float>> &sequence, float process_noise = 0.001f, float measurement_noise = 0.1f)
+{
+
+    if (sequence.empty())
+    {
+        return;
+    }
+
+    int num_points = sequence.size();
+    int num_dimensions = sequence[0].size();
+    std::vector<std::vector<float>> filtered_sequence = sequence;
+
+    // Initialize Kalman filter parameters
+    std::vector<float> predicted_state(num_dimensions, 0.0f);
+    std::vector<float> prediction_error(num_dimensions, 1.0f);
+
+    for (int i = 0; i < num_points; ++i)
+    {
+        for (int j = 0; j < num_dimensions; ++j)
+        {
+            // Predict step
+            float predicted_error = prediction_error[j] + process_noise;
+
+            // Update step
+            float kalman_gain = predicted_error / (predicted_error + measurement_noise);
+            filtered_sequence[i][j] = predicted_state[j] + kalman_gain * (sequence[i][j] - predicted_state[j]);
+            prediction_error[j] = (1 - kalman_gain) * predicted_error;
+
+            // Update prediction for next iteration
+            predicted_state[j] = filtered_sequence[i][j];
+        }
+    }
+
+    sequence = filtered_sequence;
+}
+
+void weighted_moving_average(std::vector<std::vector<float>> &sequence, int window_size = 3)
+{
+
+    if (sequence.empty() || window_size <= 1)
+    {    
+        return;
+    }
+
+    int num_points = sequence.size();
+    int num_dimensions = sequence[0].size();
+    std::vector<std::vector<float>> filtered_sequence(num_points, std::vector<float>(num_dimensions, 0.0f));
+
+    // Create weights (triangular window)
+    std::vector<float> weights(window_size);
+    float weight_sum = 0;
+    for (int i = 0; i < window_size; ++i)
+    {
+        weights[i] = 1.0f + std::min(i, window_size - 1 - i);
+        weight_sum += weights[i];
+    }
+
+    for (int i = 0; i < num_points; ++i)
+    {
+        for (int j = 0; j < num_dimensions; ++j)
+        {
+            float weighted_sum = 0;
+            float actual_weight_sum = 0;
+
+            int window_start = std::max(0, i - window_size / 2);
+            int window_end = std::min(num_points - 1, i + window_size / 2);
+
+            for (int k = window_start; k <= window_end; ++k)
+            {
+                int weight_index = k - window_start;
+                weighted_sum += sequence[k][j] * weights[weight_index];
+                actual_weight_sum += weights[weight_index];
+            }
+
+            filtered_sequence[i][j] = weighted_sum / actual_weight_sum;
+        }
+    }
+
+    sequence = filtered_sequence;
+    
+}
 // helper - TODO delete these later from source code
 
 int main()
