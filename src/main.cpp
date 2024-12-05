@@ -536,12 +536,12 @@ void DynamicLoop() {
             button_hold_time++;
         }    
         else if (!current_state && button_pressed) {  // Button was just released
-            if (button_hold_time < 50) {  // button released under 4 seconds so enter unlock mode
+            if (button_hold_time < 20) {  // button released under 4 seconds so enter unlock mode
                 //Evaluate with Recorded GT
                 header = "Validating";
                 validate_sequence();
                 float deviation = validate_using_dtw(ground_truth_sequences,test_sequences);
-                if(deviation <= 0.2f){
+                if(deviation <= 10.0f){
                     header = "Unlocked";
                     ui_background_color = "GREEN";
                     ThisThread::sleep_for(3000ms);
