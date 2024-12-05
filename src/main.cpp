@@ -570,7 +570,7 @@ void DynamicLoop() {
                     button_pressed = false;
                 }
                 else{
-                    header = "Failed" + std::to_string(deviation);
+                    header = "Failed";
                     ui_background_color = "RED";
                     ThisThread::sleep_for(3000ms);
                     header = "Main Screen";
