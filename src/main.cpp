@@ -454,8 +454,8 @@ void execute_preprocessing_steps(std::vector<std::vector<float>> &recorded_seque
     calibrate_gyro_using_initial_position(validation_sequence);
     remove_noise_from_datapoints(validation_sequence, 0.0001);
 
-    moving_average_filter(recorded_sequence);
-    moving_average_filter(validation_sequence);
+    moving_average_filter(recorded_sequence, 5);
+    moving_average_filter(validation_sequence, 5);
 }
 
 // Validation function for previously recorded gesture and new gesture
@@ -473,7 +473,7 @@ float euclidean_distance(const std::vector<float> &a, const std::vector<float> &
 
 float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std::vector<std::vector<float>> &validation_sequence)
 {
-    execute_preprocessing_steps(recorded_sequence, validation_sequence);
+    execute_preprocessing_steps(recorded_sequence, validation_sequence); 
 
     int n = recorded_sequence.size();
     int m = validation_sequence.size();
@@ -483,18 +483,30 @@ float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std
     dtw_matrix[0][0] = 0;
 
     // Fill DTW matrix
-    for (int i = 1; i <= n; i++)
-    {
-        for (int j = 1; j <= m; j++)
+    // for (int i = 1; i <= n; i++)
+    // {
+    //     for (int j = 1; j <= m; j++)
+    //     {
+    //         float cost = euclidean_distance(recorded_sequence[i - 1], validation_sequence[j - 1]);
+    //         dtw_matrix[i][j] = cost + std::min({
+    //                                       dtw_matrix[i - 1][j],    // insertion
+    //                                       dtw_matrix[i][j - 1],    // deletion
+    //                                       dtw_matrix[i - 1][j - 1] // match
+    //                                   });
+    //     }
+    // }
+
+
+    for (int i = 1; i <= n; ++i) {
+        for (int j = 1; j <= m; ++j) {
+        float cost = 0;
+        for (int k = 0; k < 3; ++k)
         {
-            float cost = euclidean_distance(recorded_sequence[i - 1], validation_sequence[j - 1]);
-            dtw_matrix[i][j] = cost + std::min({
-                                          dtw_matrix[i - 1][j],    // insertion
-                                          dtw_matrix[i][j - 1],    // deletion
-                                          dtw_matrix[i - 1][j - 1] // match
-                                      });
+            cost += std::abs(recorded_sequence[i - 1][k] - validation_sequence[j - 1][k]);
         }
-    }
+        dtw_matrix[i][j] = cost + std::min({dtw_matrix[i - 1][j], dtw_matrix[i][j - 1], dtw_matrix[i - 1][j - 1]});
+        }
+  }
 
     float final_distance = dtw_matrix[n][m];
     printf("DTW Distance: %.4f\n", final_distance);
@@ -541,7 +553,7 @@ void DynamicLoop() {
                 header = "Validating";
                 validate_sequence();
                 float deviation = validate_using_dtw(ground_truth_sequences,test_sequences);
-                if(deviation <= 10.0f){
+                if(deviation <= 110.0f){
                     header = "Unlocked";
                     ui_background_color = "GREEN";
                     ThisThread::sleep_for(3000ms);
@@ -551,7 +563,7 @@ void DynamicLoop() {
                     button_pressed = false;
                 }
                 else{
-                    header = "Failed";
+                    header = "Failed" + std::to_string(deviation);
                     ui_background_color = "RED";
                     ThisThread::sleep_for(3000ms);
                     header = "Main Screen";
