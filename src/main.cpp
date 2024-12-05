@@ -1,3 +1,10 @@
+// TODO 1: Add better UI functionality
+// TODO 2: See if we can make user profiles and implement UI
+// TODO 3: Refactor code wherever required
+// TODO 4: Playaround with different distance functions and filters
+
+
+
 #include <mbed.h>
 #include <vector>
 #include <cmath>
