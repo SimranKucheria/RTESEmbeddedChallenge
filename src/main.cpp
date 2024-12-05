@@ -44,8 +44,12 @@ std::vector<std::vector<float>> test_sequences;
 // Objects
 SPI spi(PF_9, PF_8, PF_7, PC_1, use_gpio_ssel);
 DigitalOut led1(LED2);
+DigitalIn button(BUTTON1); // Button input
 EventFlags flags;
-
+LCD_DISCO_F429ZI lcd;
+Mutex lcd_mutex;
+std::string ui_background_color = "BLUE";
+std::string header = "Main Screen";
 // Functions to setup gyro and read value
 
 void spi_cb(int event)
@@ -498,8 +502,94 @@ float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std
 }
 // helper - TODO delete these later from source code
 
+void DisplayLoop() {
+    while (true) {
+        if (ui_background_color == "GREEN") {
+            lcd.Clear(LCD_COLOR_GREEN);
+            lcd.SetBackColor(LCD_COLOR_GREEN);
+        } else if (ui_background_color == "RED"){
+            lcd.Clear(LCD_COLOR_RED);
+            lcd.SetBackColor(LCD_COLOR_RED);
+        }
+        else{
+            lcd.Clear(LCD_COLOR_BLUE);
+            lcd.SetBackColor(LCD_COLOR_BLUE);
+        } 
+
+        lcd.SetTextColor(LCD_COLOR_WHITE);
+        lcd.DisplayStringAt(0, LINE(1), (uint8_t *)header.c_str(), CENTER_MODE);
+        ThisThread::sleep_for(100ms);
+    }
+}
+
+
+void DynamicLoop() {
+    bool button_pressed = false;  // button state
+    int button_hold_time = 0;  // button time
+    while (true){
+        bool current_state = button.read();
+        if (current_state && !button_pressed) {   // Button was just pressed
+            button_pressed = true;
+            button_hold_time = 0;
+            
+        } else if (current_state && button_pressed) {  // Button is being held down
+            button_hold_time++;
+        }    
+        else if (!current_state && button_pressed) {  // Button was just released
+            if (button_hold_time < 50) {  // button released under 4 seconds so enter unlock mode
+                //Evaluate with Recorded GT
+                header = "Validating";
+                validate_sequence();
+                float deviation = validate_using_dtw(ground_truth_sequences,test_sequences);
+                if(deviation <= 0.2f){
+                    header = "Unlocked";
+                    ui_background_color = "GREEN";
+                    ThisThread::sleep_for(3000ms);
+                    header = "Main Screen";
+                    ui_background_color = "BLUE";
+                    button_hold_time = 0;
+                    button_pressed = false;
+                }
+                else{
+                    header = "Failed";
+                    ui_background_color = "RED";
+                    ThisThread::sleep_for(3000ms);
+                    header = "Main Screen";
+                    ui_background_color = "BLUE";
+                    button_hold_time = 0;
+                    button_pressed = false;
+                }
+
+            }
+            else{  // if button held down for 4 seconds then enter record mode      
+            
+                //Record GT
+                header = "Recording";
+                record_gesture_sequence();
+                header = "Recorded Successfully";
+                ThisThread::sleep_for(3000ms);
+                header = "Main Screen";
+                ui_background_color = "BLUE";
+                button_hold_time = 0;
+                button_pressed = false;
+
+            }
+        }
+        else{
+            continue;
+        } 
+        ThisThread::sleep_for(100ms);
+    }
+}
+
 int main()
 {
+    configure_gyroscope();
+    Thread display_thread;
+    Thread dynamic_thread;
+    
+    display_thread.start(callback(DisplayLoop));
+    dynamic_thread.start(callback(DynamicLoop));
 
     while (1)
     {
