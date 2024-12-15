@@ -562,7 +562,9 @@ void ButtonLoop(){
                     ui_background_color = "BLUE";
                     button_hold_time = 0;
                     button_pressed = false;
+             
                 }
+                
 
             }
             else{  // if button held down for 4 seconds then enter record mode      
@@ -580,7 +582,7 @@ void ButtonLoop(){
                 ui_background_color = "BLUE";
                 button_hold_time = 0;
                 button_pressed = false;
-
+                 return ;
             }
         }
         else{
@@ -632,8 +634,13 @@ void DisplayLoop() {
                 
                 current_user = user_profiles;
                 new_user = 1;
-                ButtonLoop();
+                
+                header == "New User Recording";
+
+
+                //  ButtonLoop();
             }
+
         }
         else if (header == "Delete User") {
             if (user_profiles <= 0) {
@@ -688,6 +695,11 @@ void DynamicLoop() {
     TS_StateTypeDef ts_state;
     while (true) {
         BSP_TS_GetState(&ts_state);
+        if ( header== "New User Recording"){
+        ButtonLoop();
+        //Thread button_thread;
+        //button_thread.start(callback(ButtonLoop)); 
+        }
         if (ts_state.TouchDetected) {
             
             if (header == "Menu") {
@@ -739,7 +751,7 @@ int main()
     display_thread.start(callback(DisplayLoop));
     dynamic_thread.start(callback(DynamicLoop));
 
-    while (1)
+    while(1)
     {
     }
 }
