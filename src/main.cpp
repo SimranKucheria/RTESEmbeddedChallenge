@@ -539,8 +539,8 @@ void ButtonLoop(){
         } else if (current_state && button_pressed) {  // Button is being held down
             button_hold_time++;
         }    
-        else if (!current_state && button_pressed && !new_user) {  // Button was just released
-            if (button_hold_time < 20) {  // button released under 4 seconds so enter unlock mode
+        else if (!current_state && button_pressed) {  // Button was just released
+            if (button_hold_time < 20 && !new_user) {  // button released under 4 seconds so enter unlock mode
                 //Evaluate with Recorded GT
                 header = "Validating";
                 validate_sequence();
@@ -569,6 +569,7 @@ void ButtonLoop(){
             
                 //Record GT
                 header = "Recording";
+                ThisThread::sleep_for(100ms);
                 record_gesture_sequence();
                 header = "Recorded Successfully";
                 ThisThread::sleep_for(3000ms);
@@ -626,8 +627,8 @@ void DisplayLoop() {
                 std::string message = "CREATED USER " + std::to_string(user_profiles + 1);
                 lcd.DisplayStringAt(0, LINE(5), (uint8_t *)message.c_str(), CENTER_MODE);
                 user_profiles++;
-                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"LONG PRESS BUTTON");
-                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO RECORD GESTURE");
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"LONG PRESS BUTTON",CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO RECORD GESTURE", CENTER_MODE);
                 
                 current_user = user_profiles;
                 new_user = 1;
