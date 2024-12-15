@@ -688,13 +688,14 @@ void DynamicLoop() {
         if (ts_state.TouchDetected) {
             
             if (header == "Menu") {
-                if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(10)) {
-                    header = "Delete User";
-                } else if (ts_state.Y < LINE(10) && ts_state.Y >= LINE(5)) {
-                    header = "User Profiles";
-                } else if (ts_state.Y < LINE(5) && ts_state.Y >= LINE(1)) {
-                    header = "Create User";
-                }
+                // if (ts_state.Y < LINE(15) && ts_state.Y >= LINE(10)) {
+                //     header = "Delete User";
+                // } else if (ts_state.Y < LINE(10) && ts_state.Y >= LINE(5)) {
+                //     header = "User Profiles";
+                // } else if (ts_state.Y < LINE(5) && ts_state.Y >= LINE(1)) {
+                //     header = "Create User";
+                // }
+                header == ts_state.Y
             }
             else if(header == "User Profiles" && user_profiles > 0){
                 if (ts_state.Y < LINE(4) && ts_state.Y >= LINE(1) && user_profiles >=1) {
