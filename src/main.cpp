@@ -624,9 +624,11 @@ void DisplayLoop() {
             }
             else {
                 std::string message = "CREATED USER " + std::to_string(user_profiles + 1);
-                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)message.c_str(), CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(5), (uint8_t *)message.c_str(), CENTER_MODE);
                 user_profiles++;
-                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"LONG PRESS BUTTON TO RECORD GESTURE", CENTER_MODE);
+                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"LONG PRESS BUTTON");
+                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO RECORD GESTURE");
+                
                 current_user = user_profiles;
                 new_user = 1;
                 ButtonLoop();
@@ -697,27 +699,28 @@ void DynamicLoop() {
                 }
             }
             else if(header == "User Profiles" && user_profiles > 0){
-                if (ts_state.Y < LINE(4) && ts_state.Y >= LINE(1) && user_profiles >=1) {
-                    current_user = 1;
-                    header = "User";
-                    ButtonLoop();
-                } else if (ts_state.Y < LINE(7) && ts_state.Y >= LINE(4) && user_profiles >=2) {
-                    current_user = 2;
-                    header = "User";
-                    ButtonLoop();
-                } else if (ts_state.Y < LINE(10) && ts_state.Y >= LINE(7) && user_profiles >=3) {
-                    current_user = 3;
-                    header = "User";
-                    ButtonLoop();
-                }
-                else if (ts_state.Y < LINE(13) && ts_state.Y >= LINE(10) && user_profiles ==4) {
-                    current_user = 4;
-                    header = "User";
-                    ButtonLoop();
-                }
-                else{
-                    continue;
-                }
+                // if (ts_state.Y < LINE(4) && ts_state.Y >= LINE(1) && user_profiles >=1) {
+                //     current_user = 1;
+                //     header = "User";
+                //     ButtonLoop();
+                // } else if (ts_state.Y < LINE(7) && ts_state.Y >= LINE(4) && user_profiles >=2) {
+                //     current_user = 2;
+                //     header = "User";
+                //     ButtonLoop();
+                // } else if (ts_state.Y < LINE(10) && ts_state.Y >= LINE(7) && user_profiles >=3) {
+                //     current_user = 3;
+                //     header = "User";
+                //     ButtonLoop();
+                // }
+                // else if (ts_state.Y < LINE(13) && ts_state.Y >= LINE(10) && user_profiles ==4) {
+                //     current_user = 4;
+                //     header = "User";
+                //     ButtonLoop();
+                // }
+                // else{
+                //     continue;
+                // }
+                header = std::to_string(ts_state.Y);
             }
             
         }
