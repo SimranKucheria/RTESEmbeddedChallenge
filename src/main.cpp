@@ -144,7 +144,7 @@ void record_gesture_sequence()
                                           gyro_data[1],
                                           gyro_data[2]});
     }
-    // all_user_GT[current_user] = ground_truth_sequences;
+    
 }
 
 void validate_sequence()
@@ -544,9 +544,10 @@ void ButtonLoop(){
             else if (!current_state && button_pressed) {  // Button was just released
                 if (button_hold_time < 20 && !new_user) {  // button released under 4 seconds so enter unlock mode
                     //Evaluate with Recorded GT
-                    header = "Validating";
+                    header = "Recording";
                     validate_sequence();
-                    float deviation = validate_using_dtw(all_user_GT[current_user],test_sequences);
+                    header = "Validating";
+                    float deviation = validate_using_dtw(all_user_GT[current_user-1],test_sequences);
                     if(deviation <= 110.0f){
                         header = "Unlocked";
                         ui_background_color = "GREEN";
@@ -577,6 +578,7 @@ void ButtonLoop(){
                     header = "Recording";
                     record_gesture_sequence();
                     header = "Recorded Successfully";
+                    all_user_GT.push_back(ground_truth_sequences);
                     ThisThread::sleep_for(3000ms);
                     if(new_user){
                         new_user = 0;
@@ -655,7 +657,7 @@ void DisplayLoop() {
             else {
                 std::string message = "DELETED USER " + std::to_string(user_profiles);
                 lcd.DisplayStringAt(0, LINE(10), (uint8_t *)message.c_str(), CENTER_MODE);
-                all_user_GT.erase(all_user_GT.begin() + user_profiles);
+                all_user_GT.erase(all_user_GT.begin() + user_profiles-1);
                 user_profiles--;
                 lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"GOING BACK TO MENU", CENTER_MODE);
                 ThisThread::sleep_for(2000ms);
