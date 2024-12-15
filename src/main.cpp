@@ -657,7 +657,7 @@ void DisplayLoop() {
             else {
                 std::string message = "DELETED USER " + std::to_string(user_profiles);
                 lcd.DisplayStringAt(0, LINE(10), (uint8_t *)message.c_str(), CENTER_MODE);
-                all_user_GT.erase(all_user_GT.begin() + user_profiles-1);
+                all_user_GT.pop_back();
                 user_profiles--;
                 lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"GOING BACK TO MENU", CENTER_MODE);
                 ThisThread::sleep_for(2000ms);
