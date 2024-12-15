@@ -35,7 +35,7 @@ const float SENSITIVITY = SENSITIVITY_250DPS;
 const uint8_t SPI_DATA_SIZE = 8;
 const uint8_t SPI_MODE = 3;
 const int SEQUENCE_DELAY_MS = 100;
-const int MAX_SEQUENCE = 100;
+const int MAX_SEQUENCE = 50;
 const float DEFAULT_NOISE_THRESHOLD = 0.0001;
 
 // Sensor data buffers
@@ -63,6 +63,7 @@ std::string header = "Menu";
 volatile int user_profiles = 0;
 volatile int current_user = 0;
 volatile int new_user = 0;
+volatile int button_routine = 0;
 // Functions to setup gyro and read value
 
 void spi_cb(int event)
@@ -143,7 +144,7 @@ void record_gesture_sequence()
                                           gyro_data[1],
                                           gyro_data[2]});
     }
-    all_user_GT[current_user] = ground_truth_sequences;
+    // all_user_GT[current_user] = ground_truth_sequences;
 }
 
 void validate_sequence()
@@ -531,63 +532,66 @@ void ButtonLoop(){
     bool button_pressed = false;  // button state
     int button_hold_time = 0;  // button time
     while (true){
-        bool current_state = button.read();
-        if (current_state && !button_pressed) {   // Button was just pressed
-            button_pressed = true;
-            button_hold_time = 0;
-            
-        } else if (current_state && button_pressed) {  // Button is being held down
-            button_hold_time++;
-        }    
-        else if (!current_state && button_pressed) {  // Button was just released
-            if (button_hold_time < 20 && !new_user) {  // button released under 4 seconds so enter unlock mode
-                //Evaluate with Recorded GT
-                header = "Validating";
-                validate_sequence();
-                float deviation = validate_using_dtw(all_user_GT[current_user],test_sequences);
-                if(deviation <= 110.0f){
-                    header = "Unlocked";
-                    ui_background_color = "GREEN";
-                    ThisThread::sleep_for(3000ms);
-                    header = "Menu";
-                    ui_background_color = "BLUE";
-                    button_hold_time = 0;
-                    button_pressed = false;
-                }
-                else{
-                    header = "Failed";
-                    ui_background_color = "RED";
-                    ThisThread::sleep_for(3000ms);
-                    header = "Menu";
-                    ui_background_color = "BLUE";
-                    button_hold_time = 0;
-                    button_pressed = false;
-             
-                }
-                
-
-            }
-            else{  // if button held down for 4 seconds then enter record mode      
-            
-                //Record GT
-                header = "Recording";
-                ThisThread::sleep_for(100ms);
-                record_gesture_sequence();
-                header = "Recorded Successfully";
-                ThisThread::sleep_for(3000ms);
-                if(new_user){
-                    new_user = 0;
-                }
-                header = "Menu";
-                ui_background_color = "BLUE";
+        if(button_routine){
+            bool current_state = button.read();
+            if (current_state && !button_pressed) {   // Button was just pressed
+                button_pressed = true;
                 button_hold_time = 0;
-                button_pressed = false;
-                 return ;
+                
+            } else if (current_state && button_pressed) {  // Button is being held down
+                button_hold_time++;
+            }    
+            else if (!current_state && button_pressed) {  // Button was just released
+                if (button_hold_time < 20 && !new_user) {  // button released under 4 seconds so enter unlock mode
+                    //Evaluate with Recorded GT
+                    header = "Validating";
+                    validate_sequence();
+                    float deviation = validate_using_dtw(all_user_GT[current_user],test_sequences);
+                    if(deviation <= 110.0f){
+                        header = "Unlocked";
+                        ui_background_color = "GREEN";
+                        ThisThread::sleep_for(3000ms);
+                        header = "Menu";
+                        ui_background_color = "BLUE";
+                        button_hold_time = 0;
+                        button_pressed = false;
+                        button_routine = 0;
+                    }
+                    else{
+                        header = "Failed";
+                        ui_background_color = "RED";
+                        ThisThread::sleep_for(3000ms);
+                        header = "Menu";
+                        ui_background_color = "BLUE";
+                        button_hold_time = 0;
+                        button_pressed = false;
+                        button_routine = 0;
+                
+                    }
+                    
+
+                }
+                else{  // if button held down for 4 seconds then enter record mode      
+                
+                    //Record GT
+                    header = "Recording";
+                    record_gesture_sequence();
+                    header = "Recorded Successfully";
+                    ThisThread::sleep_for(3000ms);
+                    if(new_user){
+                        new_user = 0;
+                    }
+                    header = "Menu";
+                    ui_background_color = "BLUE";
+                    button_hold_time = 0;
+                    button_pressed = false;
+                    button_routine = 0 ;
+                }
             }
-        }
-        else{
-            continue;
-        } 
+            else{
+                continue;
+            } 
+        }    
         ThisThread::sleep_for(100ms);
     }
 }
@@ -624,21 +628,20 @@ void DisplayLoop() {
                 lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"CANNOT CREATE MORE", CENTER_MODE);
                 lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"PLEASE DELETE", CENTER_MODE);
                 lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"BACK TO MENU", CENTER_MODE);
+                ThisThread::sleep_for(1000ms);
+                header = "Menu";
             }
             else {
                 std::string message = "CREATED USER " + std::to_string(user_profiles + 1);
                 lcd.DisplayStringAt(0, LINE(5), (uint8_t *)message.c_str(), CENTER_MODE);
                 user_profiles++;
-                lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"LONG PRESS BUTTON",CENTER_MODE);
-                lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO RECORD GESTURE", CENTER_MODE);
                 
                 current_user = user_profiles;
                 new_user = 1;
-                
-                header == "New User Recording";
+                ThisThread::sleep_for(1000ms);
+                header = "New User Recording";
+                button_routine = 1;
 
-
-                //  ButtonLoop();
             }
 
         }
@@ -647,6 +650,7 @@ void DisplayLoop() {
                 lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"NO USERS TO DELETE", CENTER_MODE);
                 lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"GOING BACK TO MENU", CENTER_MODE);
                 ThisThread::sleep_for(2000ms);
+                header = "Menu";
             }
             else {
                 std::string message = "DELETED USER " + std::to_string(user_profiles);
@@ -669,10 +673,23 @@ void DisplayLoop() {
                     std::string profile = "USER PROFILE " + std::to_string(i);
                     lcd.DisplayStringAt(0, LINE((i * 3) + 1), (uint8_t *)profile.c_str(), CENTER_MODE);
                 }
+                lcd.DisplayStringAt(0, LINE(19), (uint8_t *)"MENU", CENTER_MODE);
+                
             }
         }
         else if (header == "User") {
             std::string userprofile = "HELLO USER" + std::to_string(current_user);
+            lcd.DisplayStringAt(0, LINE(1), (uint8_t *)userprofile.c_str(),CENTER_MODE);
+            lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"PRESS BUTTON",CENTER_MODE);
+            lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO VALIDATE GESTURE", CENTER_MODE);
+            button_routine = 1;
+            
+        }
+        else if (header == "New User Recording") {
+            lcd.DisplayStringAt(0, LINE(10), (uint8_t *)"LONG PRESS BUTTON",CENTER_MODE);
+            lcd.DisplayStringAt(0, LINE(15), (uint8_t *)"TO RECORD GESTURE", CENTER_MODE);
+            
+                
         }
         ThisThread::sleep_for(100ms);
     }
@@ -695,11 +712,6 @@ void DynamicLoop() {
     TS_StateTypeDef ts_state;
     while (true) {
         BSP_TS_GetState(&ts_state);
-        if ( header== "New User Recording"){
-        ButtonLoop();
-        //Thread button_thread;
-        //button_thread.start(callback(ButtonLoop)); 
-        }
         if (ts_state.TouchDetected) {
             
             if (header == "Menu") {
@@ -712,28 +724,30 @@ void DynamicLoop() {
                 }
             }
             else if(header == "User Profiles" && user_profiles > 0){
-                // if (ts_state.Y < LINE(4) && ts_state.Y >= LINE(1) && user_profiles >=1) {
-                //     current_user = 1;
-                //     header = "User";
-                //     ButtonLoop();
-                // } else if (ts_state.Y < LINE(7) && ts_state.Y >= LINE(4) && user_profiles >=2) {
-                //     current_user = 2;
-                //     header = "User";
-                //     ButtonLoop();
-                // } else if (ts_state.Y < LINE(10) && ts_state.Y >= LINE(7) && user_profiles >=3) {
-                //     current_user = 3;
-                //     header = "User";
-                //     ButtonLoop();
-                // }
-                // else if (ts_state.Y < LINE(13) && ts_state.Y >= LINE(10) && user_profiles ==4) {
-                //     current_user = 4;
-                //     header = "User";
-                //     ButtonLoop();
-                // }
-                // else{
-                //     continue;
-                // }
-                header = std::to_string(ts_state.Y);
+                if (ts_state.Y < 250 && ts_state.Y >= 200 && user_profiles >=1) {
+                    current_user = 1;
+                    header = "User";
+                    button_routine = 1;
+                } else if (ts_state.Y < 200 && ts_state.Y >= 150 && user_profiles >=2) {
+                    current_user = 2;
+                    header = "User";
+                    button_routine = 1;
+                } else if (ts_state.Y < 150 && ts_state.Y >= 100 && user_profiles >=3) {
+                    current_user = 3;
+                    header = "User";
+                    button_routine = 1;
+                }
+                else if (ts_state.Y < 100 && ts_state.Y >= 20 && user_profiles ==4) {
+                    current_user = 4;
+                    header = "User";
+                    button_routine = 1;
+                }
+                else if (ts_state.Y < 20) {
+                    header = "Menu";
+                }
+                else{
+                    continue;
+                }
             }
             
         }
@@ -747,9 +761,11 @@ int main()
     configure_gyroscope();
     Thread display_thread;
     Thread dynamic_thread;
+    Thread button_thread;
     
     display_thread.start(callback(DisplayLoop));
     dynamic_thread.start(callback(DynamicLoop));
+    button_thread.start(callback(ButtonLoop));
 
     while(1)
     {
