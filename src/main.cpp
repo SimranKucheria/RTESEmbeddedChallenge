@@ -574,6 +574,8 @@ void DynamicLoop() {
                 //Evaluate with Recorded GT
                 header = "Validating";
                 validate_sequence();
+                std::vector<std::vector<float>> current_test = test_sequences;  // Create local copy
+                std::vector<std::vector<float>> current_ground_truth = ground_truth_sequences;
                 float deviation = validate_using_dtw(ground_truth_sequences,test_sequences);
                 if(deviation <= 110.0f){
                     header = "Unlocked" + std::to_string(deviation);
