@@ -451,6 +451,20 @@ void weighted_moving_average(std::vector<std::vector<float>> &sequence, int wind
 }
 
 // Apply the pre-processing steps
+void preprocess_recorded_sequence(std::vector<std::vector<float>> &recorded_sequence)
+{
+    normalize_sequence(recorded_sequence);
+    // normalize_sequence(validation_sequence);
+
+    calibrate_gyro_using_initial_position(recorded_sequence);
+    remove_noise_from_datapoints(recorded_sequence, 0.0001);
+
+    // calibrate_gyro_using_initial_position(validation_sequence);
+    // remove_noise_from_datapoints(validation_sequence, 0.0001);
+
+    moving_average_filter(recorded_sequence, 5);
+    // moving_average_filter(validation_sequence, 5);
+}
 void execute_preprocessing_steps(std::vector<std::vector<float>> &recorded_sequence, std::vector<std::vector<float>> &validation_sequence)
 {
     normalize_sequence(recorded_sequence);
@@ -562,7 +576,7 @@ void DynamicLoop() {
                 validate_sequence();
                 float deviation = validate_using_dtw(ground_truth_sequences,test_sequences);
                 if(deviation <= 110.0f){
-                    header = "Unlocked";
+                    header = "Unlocked" + std::to_string(deviation);
                     ui_background_color = "GREEN";
                     ThisThread::sleep_for(3000ms);
                     header = "Main Screen";
@@ -571,7 +585,7 @@ void DynamicLoop() {
                     button_pressed = false;
                 }
                 else{
-                    header = "Failed";
+                    header = "Failed" + std::to_string(deviation);
                     ui_background_color = "RED";
                     ThisThread::sleep_for(3000ms);
                     header = "Main Screen";
@@ -586,6 +600,7 @@ void DynamicLoop() {
                 //Record GT
                 header = "Recording";
                 record_gesture_sequence();
+                // preprocess_recorded_sequence(ground_truth_sequences);
                 header = "Recorded Successfully";
                 ThisThread::sleep_for(3000ms);
                 header = "Main Screen";
