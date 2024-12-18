@@ -149,6 +149,7 @@ void record_gesture_sequence()
 
 void validate_sequence()
 {
+    test_sequences.clear();
     for (int i = 0; i < MAX_SEQUENCE; i++)
     {
         read_gyroscope();
