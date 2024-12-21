@@ -36,7 +36,7 @@ const float SENSITIVITY = SENSITIVITY_250DPS;
 const uint8_t SPI_DATA_SIZE = 8;
 const uint8_t SPI_MODE = 3;
 const int SEQUENCE_DELAY_MS = 100;
-const int MAX_SEQUENCE = 50;
+const int MAX_SEQUENCE = 100;
 const float DEFAULT_NOISE_THRESHOLD = 0.0001;
 
 // Sensor data buffers
@@ -128,6 +128,7 @@ void read_gyroscope()
 
 void record_gesture_sequence()
 {
+    ground_truth_sequences.clear();
 
     for (int i = 0; i < MAX_SEQUENCE; i++)
     {
@@ -580,6 +581,7 @@ void ButtonLoop(){
                     //Record GT
                     header = "Recording";
                     record_gesture_sequence();
+                    preprocess_recorded_sequence(ground_truth_sequences);
                     header = "Recorded Successfully";
                     all_user_GT.push_back(ground_truth_sequences);
                     ThisThread::sleep_for(3000ms);
