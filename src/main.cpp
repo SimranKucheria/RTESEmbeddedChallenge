@@ -1,10 +1,11 @@
-// TODO 1: Add better UI functionality
-// TODO 2: See if we can make user profiles and implement UI
-// TODO 3: Refactor code wherever required
-// TODO 4: Playaround with different distance functions and filters
-
 //Group 29 Princy Doshi(pd2672), Ansh Sarkar(as20363) and Simran Kucheria(sk11645)
+// We have used the gyroscope to define what a gesture sequence will be and use that data to validate as well.
+// The approach we have taken uses preprocessing steps such as normalising and calibrating the gyro data and then passing it through a filter to smoothen it out.
+// After this we had to compare the sensor data using some sort of distance metric as we can consider the gyro data as vectors.
+// After a bit of research we decided to implement the DTW algorithm which is usually effective for such scenarios.
+// For filters we tried different variations whose implmentations are present in the code, but we decided to go ahead with moving average as that was giving us the best results.
 
+// Inclding libraries
 #include <mbed.h>
 #include <vector>
 #include <cmath>
@@ -64,8 +65,8 @@ volatile int user_profiles = 0;
 volatile int current_user = 0;
 volatile int new_user = 0;
 volatile int button_routine = 0;
-// Functions to setup gyro and read value
 
+// Functions to setup gyro and read value
 void spi_cb(int event)
 {
     flags.set(SPI_FLAG);
@@ -473,6 +474,7 @@ void preprocess_recorded_sequence(std::vector<std::vector<float>> &recorded_sequ
     moving_average_filter(recorded_sequence, 5);
     // moving_average_filter(validation_sequence, 5);
 }
+
 void execute_preprocessing_steps(std::vector<std::vector<float>> &recorded_sequence, std::vector<std::vector<float>> &validation_sequence)
 {
     // normalize_sequence(recorded_sequence);
@@ -513,20 +515,6 @@ float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std
     dtw_matrix[0][0] = 0;
 
     // Fill DTW matrix
-    // for (int i = 1; i <= n; i++)
-    // {
-    //     for (int j = 1; j <= m; j++)
-    //     {
-    //         float cost = euclidean_distance(recorded_sequence[i - 1], validation_sequence[j - 1]);
-    //         dtw_matrix[i][j] = cost + std::min({
-    //                                       dtw_matrix[i - 1][j],    // insertion
-    //                                       dtw_matrix[i][j - 1],    // deletion
-    //                                       dtw_matrix[i - 1][j - 1] // match
-    //                                   });
-    //     }
-    // }
-
-
     for (int i = 1; i <= n; ++i) {
         for (int j = 1; j <= m; ++j) {
         float cost = 0;
@@ -542,7 +530,7 @@ float validate_using_dtw(std::vector<std::vector<float>> &recorded_sequence, std
     printf("DTW Distance: %.4f\n", final_distance);
     return final_distance;
 }
-// helper - TODO delete these later from source code
+//UI and Button code for the user to interact with the device
 void ButtonLoop(){
     bool button_pressed = false;  // button state
     int button_hold_time = 0;  // button time
