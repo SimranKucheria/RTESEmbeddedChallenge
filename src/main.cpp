@@ -3,7 +3,7 @@
 // TODO 3: Refactor code wherever required
 // TODO 4: Playaround with different distance functions and filters
 
-
+//Group 29 Princy Doshi(pd2672), Ansh Sarkar(as20363) and Simran Kucheria(sk11645)
 
 #include <mbed.h>
 #include <vector>
